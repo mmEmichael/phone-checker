@@ -1,7 +1,7 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
 import config
-from services.geoServiceClient import geo
+from services.geoServiceClient import send_geo_request
 
 class HTTPHandler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -21,11 +21,7 @@ class HTTPHandler(BaseHTTPRequestHandler):
         if path == "/numbers":
             phones = self.parse_phone_numbers(post_data)
             print(f"Номера: {phones}")
-            bytes_data = " ".join(geo(phones)).encode('utf-8')# тестовые данные региона для отправки, geo функция заглушка
-        elif path == "/geo":
-            pass
-        elif path == "/phone":
-            pass
+            response = send_geo_request(phones)
         else:
             status_code = 404
             bytes_data = "404".encode("utf-8")       
