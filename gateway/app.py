@@ -1,10 +1,12 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import config
 import json
+import config
+from services.geoServiceClient import geo
 
 class HTTPHandler(BaseHTTPRequestHandler):
     def do_POST(self):
-        status_code = 200
+        status_code = 200 # by default
+        bytes_data = "Сообщение принято".encode("utf-8") # by default
         path = self.path
 
         # Получаем размер данных из заголовка
@@ -19,16 +21,19 @@ class HTTPHandler(BaseHTTPRequestHandler):
         if path == "/numbers":
             phones = self.parse_phone_numbers(post_data)
             print(f"Номера: {phones}")
+            bytes_data = " ".join(geo(phones)).encode('utf-8')# тестовые данные региона для отправки, geo функция заглушка
         elif path == "/geo":
             pass
-        elif path == "/operator":
+        elif path == "/phone":
             pass
-        else: status_code = 404        
+        else:
+            status_code = 404
+            bytes_data = "404".encode("utf-8")       
  
         # Отправляем ответ клиенту
         self.send_response(status_code)
         self.end_headers()
-        self.wfile.write(b"POST request received!")
+        self.wfile.write(bytes_data)
 
     # Парсим номера из POST запроса
     def parse_phone_numbers(self, raw_data):
