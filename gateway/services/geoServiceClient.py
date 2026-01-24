@@ -9,7 +9,8 @@ def send_geo_request(phones):
     try:
         response = requests.post(config.GEO_SERVICE_URL, json=json_data)
         response.raise_for_status() # Выдаст ошибку, если статус 4xx или 5xx
-        return response.json()
+        #return response.json()
+        return response
     except requests.exceptions.ConnectionError:
         # Сюда попадем, если сервис выключен (ваш случай)
         print("Ошибка: Гео-сервис недоступен (Connection Refused)")

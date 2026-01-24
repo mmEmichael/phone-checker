@@ -22,6 +22,7 @@ class HTTPHandler(BaseHTTPRequestHandler):
             phones = self.parse_phone_numbers(post_data)
             print(f"Номера: {phones}")
             response = send_geo_request(phones)
+            bytes_data = response.text.encode("utf-8")
         else:
             status_code = 404
             bytes_data = "404".encode("utf-8")       
