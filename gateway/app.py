@@ -8,8 +8,6 @@ app = FastAPI()
 
 @app.post("/process")
 async def start_task(phones: list[str]):
-    # валидация
-
     # создаем id
     task_id = str(uuid.uuid4())
     # создаем задачу
