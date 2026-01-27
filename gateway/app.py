@@ -4,8 +4,6 @@ import uuid
 
 redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
-#проверка подключения к редису
-
 app = FastAPI()
 
 @app.post("/process")
@@ -26,13 +24,14 @@ async def get_result(task_id: str):
     status = await redis_client.get(f"task:{task_id}:status")
     if status in ["accepted", "processing"]:
        return f"Task ID: {task_id} {status}"
-    if status == "processed":
+    elif status == "processed":
         result = await redis_client.hgetall(f"task:{task_id}:phones")
         await delete_task(task_id)
         return result
     else:
         return "Task not wound"
 
+#создаем задачу: загрушаем номера и добавляем задачу в очередь 
 async def create_task(task_id: str, phones: list[str]):
     #status
     await redis_client.set(f"task:{task_id}:status", "accepted")
@@ -42,6 +41,7 @@ async def create_task(task_id: str, phones: list[str]):
     # добавляем id в очередь
     await redis_client.lpush("tasks", task_id)
 
+#удаляем статус и номера задачи
 async def delete_task(task_id: str):
     await redis_client.delete(f"task:{task_id}:phones")
     await redis_client.delete(f"task:{task_id}:status")
