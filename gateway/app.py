@@ -24,7 +24,7 @@ async def start_task(phones: list[str]):
 @app.get("/result")
 async def get_result(task_id: str):
     status = await redis_client.get(f"task:{task_id}:status")
-    if status == "accepted" or "process":
+    if status == "accepted" or "processing":
         return f"Task ID: {task_id} {status}"
     elif status == "processed":
         result = await redis_client.hgetall(f"task:{task_id}:phones")
