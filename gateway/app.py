@@ -1,50 +1,47 @@
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import json
-import config
-from services.geoServiceClient import send_geo_request
+from fastapi import FastAPI
+import redis.asyncio as redis
+import uuid
 
-class HTTPHandler(BaseHTTPRequestHandler):
-    def do_POST(self):
-        status_code = 200 # by default
-        bytes_data = "Сообщение принято".encode("utf-8") # by default
-        path = self.path
+redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
-        # Получаем размер данных из заголовка
-        content_length = int(self.headers["Content-Length"])
-         
-        # Читаем сами данные
-        post_data = self.rfile.read(content_length)
+#проверка подключения к редису
 
-        # Декодируем и выводим в консоль сервера
-        print(f"Получен POST запрос: {post_data.decode("utf-8")}")
+app = FastAPI()
 
-        if path == "/numbers":
-            phones = self.parse_phone_numbers(post_data)
-            print(f"Номера: {phones}")
-            response = send_geo_request(phones)
-            bytes_data = response.text.encode("utf-8")
-        else:
-            status_code = 404
-            bytes_data = "404".encode("utf-8")       
- 
-        # Отправляем ответ клиенту
-        self.send_response(status_code)
-        self.end_headers()
-        self.wfile.write(bytes_data)
+@app.post("/process")
+async def start_task(phones: list[str]):
+    # валидация
 
-    # Парсим номера из POST запроса
-    def parse_phone_numbers(self, raw_data):
-        data = json.loads(raw_data.decode("utf-8"))
-        return data.get("phones", [])  # массив номеров
+    # создаем id
+    task_id = str(uuid.uuid4())
+    # создаем задачу
+    await create_task(task_id, phones)
+    
+    #возвращаем id задачи
+    return(f"Task reated. ID: {task_id}")
 
+# обрабатываем get запрос выдаем номера
+@app.get("/result")
+async def get_result(task_id: str):
+    status = await redis_client.get(f"task:{task_id}:status")
+    if status == "accepted" or "process":
+        return f"Task ID: {task_id} {status}"
+    elif status == "processed":
+        result = await redis_client.hgetall(f"task:{task_id}:phones")
+        await delete_task(task_id)
+        return result
+    else:
+        return "Task not wound"
 
-# Инициализация сервера
-webServer = HTTPServer((config.hostName, config.serverPort), HTTPHandler)
-print(f"Сервер запущен: http://{config.hostName}:{config.serverPort}")
+async def create_task(task_id: str, phones: list[str]):
+    #status
+    await redis_client.set(f"task:{task_id}:status", "accepted")
+    # запись с номерами
+    for i in range(len(phones)):
+        await redis_client.hset(f"task:{task_id}:phones", phones[i], 0)
+    # добавляем id в очередь
+    await redis_client.lpush("tasks", task_id)
 
-# Бесконечный цикл прослушивания порта
-try: webServer.serve_forever()
-except KeyboardInterrupt: pass
- 
-webServer.server_close()
-print("Сервер остановлен...")
+async def delete_task(task_id: str):
+    await redis_client.delete(f"task:{task_id}:phones")
+    await redis_client.delete(f"task:{task_id}:status")
