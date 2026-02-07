@@ -1,0 +1,14 @@
+# Конфигурация Gateway-сервиса (приём задач и выдача результатов)
+
+# Подключение к Redis (очередь задач и хранение результатов)
+redis:
+  host: localhost
+  port: 6379
+
+# Имя очереди Redis (список), в который кладутся task_id. Должно совпадать с phone-service.
+queue:
+  name: tasks
+
+# Настройки приложения FastAPI
+app:
+  title: Phone Checker Gateway
