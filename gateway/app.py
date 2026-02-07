@@ -14,7 +14,7 @@ async def start_task(phones: list[str]):
     await create_task(task_id, phones)
     
     #возвращаем id задачи
-    return(f"Task reated. ID: {task_id}")
+    return {"message": "Task created", "task_id": task_id}
 
 # обрабатываем get запрос выдаем номера
 @app.get("/result")
@@ -27,19 +27,20 @@ async def get_result(task_id: str):
         await delete_task(task_id)
         return result
     else:
-        return "Task not wound"
+        return "Task not found"
 
-#создаем задачу: загрушаем номера и добавляем задачу в очередь 
+# Создаём задачу: загружаем номера и добавляем задачу в очередь (один round-trip через pipeline)
 async def create_task(task_id: str, phones: list[str]):
-    #status
-    await redis_client.set(f"task:{task_id}:status", "accepted")
-    # запись с номерами
-    for i in range(len(phones)):
-        await redis_client.hset(f"task:{task_id}:phones", phones[i], 0)
-    # добавляем id в очередь
-    await redis_client.lpush("tasks", task_id)
+    pipe = redis_client.pipeline()
+    pipe.set(f"task:{task_id}:status", "accepted")
+    for phone in phones:
+        pipe.hset(f"task:{task_id}:phones", phone, 0)
+    pipe.lpush("tasks", task_id)
+    await pipe.execute()
 
-#удаляем статус и номера задачи
+# Удаляем статус и номера задачи (один round-trip через pipeline)
 async def delete_task(task_id: str):
-    await redis_client.delete(f"task:{task_id}:phones")
-    await redis_client.delete(f"task:{task_id}:status")
+    pipe = redis_client.pipeline()
+    pipe.delete(f"task:{task_id}:phones")
+    pipe.delete(f"task:{task_id}:status")
+    await pipe.execute()
