@@ -65,6 +65,9 @@ QUEUE_NAME = config["queue"].get("name", "tasks")
 # Обработка одного номера (страна + оператор)
 # -----------------------------------------------------------------------------
 
+# Ограничиваем количество потоков
+MAX_CONCURRENT_THREADS = 20
+semaphore = asyncio.Semaphore(MAX_CONCURRENT_THREADS)
 
 def _parse_phone(phone: str) -> str:
     """
@@ -86,11 +89,15 @@ async def _process_one_phone(phone: str) -> tuple[str, str]:
 
     Парсинг phonenumbers — CPU-bound, поэтому выполняем в пуле потоков,
     чтобы не блокировать цикл событий и обрабатывать много номеров параллельно.
-    Возвращает кортеж (номер, строка "страна: оператор").
+    Возвращает кортеж (номер, строка "страна: оператор") или (номер, "Error: ...")
+    при исключении.
     """
-    result = await asyncio.to_thread(_parse_phone, phone)
-    return (phone, result)
-
+    async with semaphore:
+        try:
+            result = await asyncio.to_thread(_parse_phone, phone)
+            return (phone, result)
+        except Exception as e:
+            return (phone, f"Error: {e}")
 
 # -----------------------------------------------------------------------------
 # Основной цикл воркера
@@ -134,11 +141,7 @@ async def phone_service() -> None:
 
         # Записываем результаты одним pipeline (один round-trip в Redis)
         pipe = redis_client.pipeline()
-        for item in results:
-            if isinstance(item, Exception):
-                print(f"Task {task_id}: error processing phone: {item}")
-                continue
-            phone, data = item
+        for phone, data in results:
             pipe.hset(f"task:{task_id}:phones", phone, data)
         await pipe.execute()
 
