@@ -141,7 +141,7 @@ async def phone_service() -> None:
 
         # Обрабатываем номера параллельно
         results = await asyncio.gather(
-            *[_process_one_phone(phone) for phone in phones],
+            *[_process_one_phone(phone, semaphore=semaphore) for phone in phones],
             return_exceptions=True,
         )
 
