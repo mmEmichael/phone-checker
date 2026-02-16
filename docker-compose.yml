@@ -1,0 +1,25 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  gateway:
+    build: .
+    # Команда запуска FastAPI
+    command: fastapi run gateway/app.py --port 5000
+    ports:
+      - "5000:5000"
+    environment:
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
+
+  worker:
+    build: .
+    # Команда запуска Воркера
+    command: python phone-service/app.py
+    environment:
+      - REDIS_HOST=redis
+    depends_on:
+      - redis

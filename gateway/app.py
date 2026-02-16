@@ -6,6 +6,7 @@ Phone-service забирает задачи, обрабатывает номер
 Клиент получает результат через GET /result?task_id=...
 """
 
+import os
 from pathlib import Path
 
 import redis.asyncio as redis
@@ -52,8 +53,12 @@ config = load_config()
 # Подключение к Redis и приложение FastAPI
 # -----------------------------------------------------------------------------
 
+# Пытаемся взять адрес из переменной окружения (которую мы прописали в yaml)
+# Если её нет (запуск без докера), используем localhost
+REDIS_ADDR = os.getenv("REDIS_HOST", "redis")
+
 redis_client = redis.Redis(
-    host=config["redis"]["host"],
+    host=REDIS_ADDR,
     port=config["redis"]["port"],
     decode_responses=True,
 )
