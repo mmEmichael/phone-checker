@@ -70,10 +70,6 @@ QUEUE_NAME = config["queue"].get("name", "tasks")
 # Обработка одного номера (страна + оператор)
 # -----------------------------------------------------------------------------
 
-# Ограничиваем количество потоков
-MAX_CONCURRENT_THREADS = 20
-semaphore = asyncio.Semaphore(MAX_CONCURRENT_THREADS)
-
 def _parse_phone(phone: str) -> str:
     """
     Синхронно определяет страну и оператора по номеру через библиотеку phonenumbers.
@@ -88,7 +84,7 @@ def _parse_phone(phone: str) -> str:
     return f"{country}: {operator}"
 
 
-async def _process_one_phone(phone: str) -> tuple[str, str]:
+async def _process_one_phone(phone: str, semaphore: asyncio.Semaphore) -> tuple[str, str]:
     """
     Обрабатывает один номер в отдельном потоке (asyncio.to_thread).
 
@@ -122,6 +118,11 @@ async def phone_service() -> None:
     5. Запись результатов в Redis одним pipeline.
     6. Статус задачи -> "processed".
     """
+
+    # Ограничиваем количество потоков
+    MAX_CONCURRENT_THREADS = 20
+    semaphore = asyncio.Semaphore(MAX_CONCURRENT_THREADS)
+
     while True:
         res = await redis_client.brpop(QUEUE_NAME, 0)
 
