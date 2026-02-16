@@ -138,16 +138,24 @@ async def phone_service() -> None:
         async for phone, _ in redis_client.hscan_iter(f"task:{task_id}:phones"):
             phones.append(phone)
 
-        # Обрабатываем номера параллельно; исключения не роняют всю задачу
+        # Обрабатываем номера параллельно
         results = await asyncio.gather(
             *[_process_one_phone(phone) for phone in phones],
             return_exceptions=True,
         )
 
-        # Записываем результаты одним pipeline (один round-trip в Redis)
+        # Записываем результаты одним pipeline
         pipe = redis_client.pipeline()
-        for phone, data in results:
+        for result in results:
+            # Проверяем, не является ли результат объектом исключения
+            if isinstance(result, Exception):
+                print(f"Критическая ошибка при обработке номера: {result}")
+                continue
+            
+            # Теперь распаковка безопасна
+            phone, data = result
             pipe.hset(f"task:{task_id}:phones", phone, data)
+            
         await pipe.execute()
 
         await redis_client.set(f"task:{task_id}:status", "processed")
