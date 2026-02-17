@@ -110,7 +110,7 @@ async def get_result(task_id: str):
     if status in ["accepted", "processing"]:
         return f"Task ID: {task_id} {status}"
     elif status == "processed":
-        result = await redis_client.hgetall(f"task:{task_id}:phones")
+        result = redis_client.hgetall(f"task:{task_id}:phones")
         await delete_task(task_id)
         return result
     else:
@@ -132,7 +132,7 @@ async def create_task(task_id: str, phones: list[str]) -> None:
     pipe = redis_client.pipeline()
     pipe.set(f"task:{task_id}:status", "accepted")
     for phone in phones:
-        pipe.hset(f"task:{task_id}:phones", phone, 0)
+        pipe.hset(f"task:{task_id}:phones", phone, None)
     pipe.lpush(QUEUE_NAME, task_id)
     await pipe.execute()
 
