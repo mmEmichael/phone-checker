@@ -120,7 +120,7 @@ async def phone_service() -> None:
     """
 
     # Ограничиваем количество потоков
-    MAX_CONCURRENT_THREADS = 20
+    MAX_CONCURRENT_THREADS = os.cpu_count() or 2
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_THREADS)
 
     while True:
@@ -141,7 +141,7 @@ async def phone_service() -> None:
 
         # Обрабатываем номера параллельно
         results = await asyncio.gather(
-            *[_process_one_phone(phone) for phone in phones],
+            *[_process_one_phone(phone, semaphore=semaphore) for phone in phones],
             return_exceptions=True,
         )
 
